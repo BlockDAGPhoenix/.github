@@ -32,6 +32,298 @@ BlockDAG Phoenix delivers:
 
 ---
 
+## 🚀 **Quick Start Guide**
+
+### **Step 1: Connect to Testnet**
+
+#### **Option A: Using MetaMask**
+
+1. Open MetaMask
+2. Go to **Settings → Networks → Add Network**
+3. Enter:
+   - **Network Name**: Phoenix Testnet
+   - **RPC URL**: `http://testnet-rpc.bdp.network:16210`
+   - **Chain ID**: `11112`
+   - **Currency Symbol**: BDP
+   - **Block Explorer**: `http://testnet.bdpscan.com:6663`
+4. Click **Save**
+
+#### **Option B: Using Hardhat**
+
+Create `hardhat.config.js`:
+
+```javascript
+require("@nomicfoundation/hardhat-toolbox");
+
+module.exports = {
+  solidity: "0.8.19",
+  networks: {
+    phoenixTestnet: {
+      url: "http://testnet-rpc.bdp.network:16210",
+      chainId: 11112,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+};
+```
+
+#### **Option C: Using ethers.js**
+
+```javascript
+const { ethers } = require("ethers");
+
+const provider = new ethers.JsonRpcProvider(
+  "http://testnet-rpc.bdp.network:16210"
+);
+
+// Get current block number
+const blockNumber = await provider.getBlockNumber();
+console.log("Current block:", blockNumber);
+```
+
+---
+
+## 📝 **Writing Smart Contracts**
+
+### **Step 1: Setup Project**
+
+```bash
+mkdir my-phoenix-contract
+cd my-phoenix-contract
+npm init -y
+npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+npx hardhat init
+```
+
+### **Step 2: Write Your First Contract**
+
+Create `contracts/SimpleStorage.sol`:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract SimpleStorage {
+    uint256 public value;
+    
+    event ValueChanged(uint256 newValue);
+
+    function setValue(uint256 _value) public {
+        value = _value;
+        emit ValueChanged(_value);
+    }
+
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+}
+```
+
+### **Step 3: Deploy Contract**
+
+Create `scripts/deploy.js`:
+
+```javascript
+const hre = require("hardhat");
+
+async function main() {
+  console.log("Deploying SimpleStorage to Phoenix Testnet...");
+  
+  const SimpleStorage = await hre.ethers.getContractFactory("SimpleStorage");
+  const simpleStorage = await SimpleStorage.deploy();
+  
+  await simpleStorage.waitForDeployment();
+  
+  const address = await simpleStorage.getAddress();
+  console.log(`✅ SimpleStorage deployed to: ${address}`);
+  console.log(`📊 View on explorer: http://testnet.bdpscan.com:6663/address/${address}`);
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+```
+
+### **Step 4: Deploy**
+
+```bash
+# Set your private key (NEVER commit this!)
+export PRIVATE_KEY="your_private_key_here"
+
+# Deploy to Phoenix testnet
+npx hardhat run scripts/deploy.js --network phoenixTestnet
+```
+
+---
+
+## 💡 **Example Contracts**
+
+### **ERC-20 Token**
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract MyToken is ERC20 {
+    constructor() ERC20("MyToken", "MTK") {
+        _mint(msg.sender, 1000000 * 10**decimals());
+    }
+}
+```
+
+**Deploy**:
+```bash
+npm install @openzeppelin/contracts
+npx hardhat run scripts/deploy-token.js --network phoenixTestnet
+```
+
+### **ERC-721 NFT**
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract MyNFT is ERC721 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+
+    constructor() ERC721("MyNFT", "MNFT") {}
+
+    function mint(address to) public returns (uint256) {
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+        _safeMint(to, tokenId);
+        return tokenId;
+    }
+}
+```
+
+### **Simple DEX**
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract SimpleDEX {
+    mapping(address => uint256) public balances;
+    
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+    
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value);
+    }
+    
+    function withdraw(uint256 amount) public {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+        emit Withdraw(msg.sender, amount);
+    }
+    
+    function getBalance(address user) public view returns (uint256) {
+        return balances[user];
+    }
+}
+```
+
+---
+
+## 🔍 **Interacting with Contracts**
+
+### **Using Hardhat Console**
+
+```bash
+npx hardhat console --network phoenixTestnet
+```
+
+```javascript
+const SimpleStorage = await ethers.getContractFactory("SimpleStorage");
+const contract = await SimpleStorage.attach("0x..."); // Your contract address
+
+// Read value
+const value = await contract.getValue();
+console.log("Value:", value.toString());
+
+// Write value
+const tx = await contract.setValue(100);
+await tx.wait();
+console.log("Value updated!");
+```
+
+### **Using ethers.js**
+
+```javascript
+const { ethers } = require("ethers");
+
+const provider = new ethers.JsonRpcProvider("http://testnet-rpc.bdp.network:16210");
+const contractAddress = "0x..."; // Your contract address
+const abi = [/* contract ABI */];
+
+const contract = new ethers.Contract(contractAddress, abi, provider);
+
+// Read
+const value = await contract.getValue();
+console.log("Value:", value.toString());
+
+// Write (requires wallet)
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const contractWithSigner = contract.connect(wallet);
+const tx = await contractWithSigner.setValue(100);
+await tx.wait();
+```
+
+---
+
+## 📊 **Testnet Information**
+
+### **Network Details**
+
+| Parameter | Value |
+|-----------|-------|
+| **Network Name** | Phoenix Testnet |
+| **RPC URL** | `http://testnet-rpc.bdp.network:16210` |
+| **Chain ID** | `11112` (0x2b68) |
+| **Explorer** | `http://testnet.bdpscan.com:6663` |
+| **Block Time** | ~1 second |
+| **Currency Symbol** | BDP |
+
+### **Testnet Endpoints**
+
+- **RPC**: http://testnet-rpc.bdp.network:16210
+- **Explorer**: http://testnet.bdpscan.com:6663
+- **Explorer API**: http://testnet-api.bdpscan.com:6662
+
+### **Useful RPC Methods**
+
+```bash
+# Get chain ID
+curl -X POST http://testnet-rpc.bdp.network:16210 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'
+
+# Get current block number
+curl -X POST http://testnet-rpc.bdp.network:16210 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+
+# Get gas price
+curl -X POST http://testnet-rpc.bdp.network:16210 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_gasPrice","params":[],"id":1}'
+```
+
+---
+
 ## 🚀 **Current Status: PRODUCTION READY**
 
 ### **✅ What's Live**
@@ -76,33 +368,6 @@ BlockDAG Phoenix delivers:
 
 ---
 
-## 🚀 **Quick Start**
-
-### **Connect to Testnet**
-
-```javascript
-// Hardhat config
-networks: {
-  phoenixTestnet: {
-    url: "http://testnet-rpc.bdp.network:16210",
-    chainId: 11112,
-  }
-}
-```
-
-### **Deploy a Contract**
-
-```bash
-npx hardhat run scripts/deploy.js --network phoenixTestnet
-```
-
-### **View on Explorer**
-
-🌐 **Explorer**: http://testnet.bdpscan.com:6663  
-🔗 **RPC**: http://testnet-rpc.bdp.network:16210
-
----
-
 ## 📊 **Why We're Different**
 
 | Aspect | BlockDAG Phoenix | Original BlockDAG |
@@ -117,20 +382,13 @@ npx hardhat run scripts/deploy.js --network phoenixTestnet
 
 ---
 
-## 🎯 **Our Mission**
-
-Build a transparent, open-source BlockDAG blockchain that delivers what others promised but failed to ship: a working DAG network with smart contract capabilities.
-
-**100% EVM Compatible** - Deploy any Ethereum contract without modification.
-
----
-
-## 🔗 **Links**
+## 🔗 **Resources**
 
 - **🌐 Testnet Explorer**: http://testnet.bdpscan.com:6663
 - **🔗 Testnet RPC**: http://testnet-rpc.bdp.network:16210
 - **📚 Documentation**: [phoenix-docs](https://github.com/BlockDAGPhoenix/phoenix-docs)
-- **💻 Smart Contract Guide**: [Development Guide](https://github.com/BlockDAGPhoenix/phoenix-explorer/blob/main/SMART_CONTRACT_DEVELOPMENT_GUIDE.md)
+- **💻 Smart Contract Guide**: [Complete Development Guide](https://github.com/BlockDAGPhoenix/phoenix-explorer/blob/main/SMART_CONTRACT_DEVELOPMENT_GUIDE.md)
+- **🛠️ Repositories**: See [Development](#-development) section below
 
 ---
 
@@ -155,6 +413,14 @@ We welcome contributions! See individual repository READMEs for contribution gui
 ## 📝 **License**
 
 MIT License - See individual repositories for license details.
+
+---
+
+## 🎯 **Mission**
+
+Build a transparent, open-source BlockDAG blockchain that delivers what others promised but failed to ship: a working DAG network with smart contract capabilities.
+
+**100% EVM Compatible** - Deploy any Ethereum contract without modification.
 
 ---
 
